@@ -25,7 +25,9 @@ export async function connectCached() {
   if (!cache.promise) {
     cache.promise = mongoose
       .connect(config.mongoUri, {
-        serverSelectionTimeoutMS: 8000,
+        // Shorter than the local timeout: a serverless invocation has ~10s
+        // total, so fail fast enough to return a real error.
+        serverSelectionTimeoutMS: 5000,
         maxPoolSize: 5,
         maxIdleTimeMS: 30000,
       })

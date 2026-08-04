@@ -11,13 +11,17 @@ import { connectCached } from "../src/db.js";
 const app = createApp();
 
 export default async function handler(req, res) {
-  try {
-    await connectCached();
-  } catch (err) {
-    console.error("[db] connection failed:", err.message);
-    res.statusCode = 503;
-    res.setHeader("Content-Type", "application/json");
-    return res.end(JSON.stringify({ ok: false, error: "Database unavailable" }));
+  // Only the data routes need Mongo. Gating everything on it would take the
+  // login page, the dashboard shell and its assets down with the database.
+  if (req.url?.startsWith("/api/")) {
+    try {
+      await connectCached();
+    } catch (err) {
+      console.error("[db] connection failed:", err.message);
+      res.statusCode = 503;
+      res.setHeader("Content-Type", "application/json");
+      return res.end(JSON.stringify({ ok: false, error: "Database unavailable" }));
+    }
   }
   return app(req, res);
 }
