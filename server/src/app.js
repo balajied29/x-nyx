@@ -29,17 +29,20 @@ export function createApp() {
     res.sendFile(path.join(publicDir, "login.html"));
   });
 
+  // 303 on purpose: these answer a POST, and the browser must switch to GET to
+  // follow them. Vercel's proxy turns a bare 302 into a 307, which preserves
+  // the method and re-POSTs to a route that only accepts GET.
   app.post("/dashboard/login", loginThrottle, (req, res) => {
     const ok = passwordMatches(req.body?.password);
     req.onLoginResult?.(ok);
-    if (!ok) return res.redirect("/dashboard/login?error=1");
+    if (!ok) return res.redirect(303, "/dashboard/login?error=1");
     issueSession(res);
-    res.redirect("/dashboard");
+    res.redirect(303, "/dashboard");
   });
 
   app.post("/dashboard/logout", (req, res) => {
     clearSession(res);
-    res.redirect("/dashboard/login");
+    res.redirect(303, "/dashboard/login");
   });
 
   app.get("/dashboard", requirePage, (_req, res) => {
