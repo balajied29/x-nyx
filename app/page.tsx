@@ -1,66 +1,187 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+"use client";
+
+import dynamic from "next/dynamic";
+import { FormEvent, useEffect, useRef, useState } from "react";
+
+const Scene = dynamic(() => import("@/components/Scene"), { ssr: false });
+
+const TARGET = new Date(2026, 7, 20, 0, 0, 0); // 20 August 2026, local time
+const MIN_LOADER_MS = 1400;
+
+type Remaining = { days: string; hours: string; mins: string; secs: string };
+
+function remainingParts(): Remaining {
+  const ms = Math.max(0, TARGET.getTime() - Date.now());
+  const s = Math.floor(ms / 1000);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return {
+    days: pad(Math.floor(s / 86400)),
+    hours: pad(Math.floor((s % 86400) / 3600)),
+    mins: pad(Math.floor((s % 3600) / 60)),
+    secs: pad(s % 60),
+  };
+}
+
+function Countdown() {
+  const [parts, setParts] = useState<Remaining | null>(null);
+  useEffect(() => {
+    setParts(remainingParts());
+    const id = setInterval(() => setParts(remainingParts()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const units: [keyof Remaining, string][] = [
+    ["days", "Days"],
+    ["hours", "Hrs"],
+    ["mins", "Min"],
+    ["secs", "Sec"],
+  ];
+  return (
+    <>
+      <span className="srOnly">Arrives on 20 August</span>
+      <div className="count" aria-hidden>
+        {units.map(([key, label], i) => (
+          <div className="unitWrap" key={key}>
+            {i > 0 && <span className="colon">:</span>}
+            <div className="unit">
+              <span className="num">{parts ? parts[key] : "--"}</span>
+              <span className="lbl">{label}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
+function RegisterForm({ onDone }: { onDone: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const nameRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (open) nameRef.current?.focus();
+  }, [open]);
+
+  if (!open) {
+    return (
+      <button type="button" className="cta" onClick={() => setOpen(true)}>
+        Register
+      </button>
+    );
+  }
+
+  async function submit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    const data = new FormData(e.currentTarget);
+    try {
+      const res = await fetch("/api/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: data.get("name"),
+          email: data.get("email"),
+          phone: data.get("phone"),
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.error ?? "Something went wrong — try again");
+      }
+      localStorage.setItem("xnyx_registered", "1");
+      onDone();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong — try again");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form className="regForm reveal" onSubmit={submit} noValidate={false}>
+      <label className="srOnly" htmlFor="reg-name">
+        Name
+      </label>
+      <input id="reg-name" ref={nameRef} name="name" placeholder="Name" required autoComplete="name" />
+      <label className="srOnly" htmlFor="reg-email">
+        Email
+      </label>
+      <input id="reg-email" name="email" type="email" placeholder="Email" required autoComplete="email" />
+      <label className="srOnly" htmlFor="reg-phone">
+        Phone
+      </label>
+      <input id="reg-phone" name="phone" type="tel" placeholder="Phone" required autoComplete="tel" />
+      <button type="submit" disabled={busy}>
+        {busy ? "Registering…" : "Confirm"}
+      </button>
+      {error && (
+        <p className="formError" role="alert">
+          {error}
+        </p>
+      )}
+    </form>
+  );
+}
 
 export default function Home() {
+  const [sceneReady, setSceneReady] = useState(false);
+  const [minTimeUp, setMinTimeUp] = useState(false);
+  const [registered, setRegistered] = useState(false);
+  const [visitor, setVisitor] = useState("####");
+
+  useEffect(() => {
+    const preview = new URLSearchParams(window.location.search).get("preview") === "registered";
+    setRegistered(preview || localStorage.getItem("xnyx_registered") === "1");
+    let v = localStorage.getItem("xnyx_visitor");
+    if (!v) {
+      v = String(Math.floor(1000 + Math.random() * 9000));
+      localStorage.setItem("xnyx_visitor", v);
+    }
+    setVisitor(v);
+    const id = setTimeout(() => setMinTimeUp(true), MIN_LOADER_MS);
+    return () => clearTimeout(id);
+  }, []);
+
+  const loaded = sceneReady && minTimeUp;
+
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className={styles.intro}>
-          <h1>To get started, edit the page.tsx file.</h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+    <main>
+      <Scene onReady={() => setSceneReady(true)} />
+      <div className="rays" aria-hidden />
+      <div className="vignette" aria-hidden />
+
+      <div className={`ui${loaded ? " uiIn" : ""}`}>
+        <p className="visitor">
+          You are Visitor <b>#{visitor}</b>
+        </p>
+
+        {!registered ? (
+          <div className="lower">
+            <h1 className="headline">
+              <span className="srOnly">X </span>is getting closer
+            </h1>
+            <p className="sub">Something big is on its way</p>
+            <Countdown />
+            <p className="warn">Register before the city finds out</p>
+            <RegisterForm onDone={() => setRegistered(true)} />
+          </div>
+        ) : (
+          <div className="lower reveal">
+            <h1 className="headline">You&rsquo;re on the list</h1>
+            <p className="sub">The next chapter arrives on 20 August</p>
+            <Countdown />
+            <p className="warn">Stay curious</p>
+          </div>
+        )}
+      </div>
+
+      <div className={`loader${loaded ? " done" : ""}`} aria-hidden={loaded}>
+        <span>
+          [ LOADING<span className="dots" /> ]
+        </span>
+      </div>
+    </main>
   );
 }
