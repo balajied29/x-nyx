@@ -48,8 +48,32 @@ npm run seed -- --clear   # remove every @seed.local row
 node scripts/screenshot-dashboard.mjs <outDir>   # login + dashboard screenshots
 ```
 
-## Before this goes live
+## Deploying to Vercel
 
-- Put it behind HTTPS (`NODE_ENV=production` makes the session cookie `secure`).
+This runs on Vercel as its own project, alongside the teaser, from the same repo.
+`api/index.js` exports the Express app instead of listening, and [vercel.json](vercel.json)
+routes every path to it, so Express still owns routing. `npm start` locally is unchanged.
+
+1. **New Vercel project** → import `balajied29/x-nyx` → set **Root Directory** to `server`.
+   Framework preset: Other. No build command needed.
+2. Add the environment variables from the table above (Production + Preview).
+   `NODE_ENV=production` is set by Vercel, which is what flips the session cookie to `secure`.
+3. Deploy, then copy the resulting URL.
+4. On the **teaser's** Vercel project, set `API_ORIGIN` to that URL (no trailing slash) and
+   redeploy. `/dashboard` and `/api/admin/*` are rewritten there, so the dashboard is reachable
+   at `https://<teaser-domain>/dashboard`.
+5. In Atlas, allow `0.0.0.0/0` under Network Access — Vercel functions have no fixed egress IP.
+
+Notes for the serverless setup:
+
+- Mongo connections are cached on `globalThis` (`connectCached` in [src/db.js](src/db.js)) so warm
+  invocations reuse one pool; `maxPoolSize` is 5 to stay inside Atlas' free-tier limit.
+- `public/**` is bundled into the function via `includeFiles` — the dashboard HTML/CSS/JS are read
+  from disk at request time, so they must ship with it.
+- The login throttle is in-memory, so it resets per container. It slows a casual guesser, not a
+  determined one — use a long password.
+
+## Also worth doing before launch
+
 - Registrations are unauthenticated by design — add a rate limit or captcha if the teaser gets scraped.
 - `data/registrations.json` from the pre-Mongo build is no longer read or written.

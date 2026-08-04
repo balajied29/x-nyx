@@ -3,8 +3,11 @@ import "dotenv/config";
 function required(name, fallback) {
   const value = process.env[name] ?? fallback;
   if (!value) {
-    console.error(`[config] missing ${name} — copy .env.example to .env and fill it in`);
-    process.exit(1);
+    // Thrown, not exited: on Vercel this surfaces in the function log instead
+    // of killing the runtime silently.
+    throw new Error(
+      `[config] missing ${name} — set it in .env locally, or in the Vercel project's environment variables`,
+    );
   }
   return value;
 }

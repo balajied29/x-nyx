@@ -10,6 +10,10 @@ Run both: `npm run dev` here, and `npm start` in `server/` (needs MongoDB and a 
 see [server/README.md](server/README.md)). The Next app proxies `/dashboard` and `/api/admin/*` to
 the service, and `/api/register` forwards signups to it.
 
+**On Vercel** they are two projects from this one repo: the teaser (Root Directory `.`) and the
+service (Root Directory `server`). Set `API_ORIGIN` on the teaser project to the service's URL —
+[server/README.md](server/README.md#deploying-to-vercel) has the full walkthrough.
+
 ---
 
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
