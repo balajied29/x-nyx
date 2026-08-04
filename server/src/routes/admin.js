@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { Registration } from "../models/Registration.js";
+import { currentSequence } from "../models/Counter.js";
 import { config } from "../config.js";
 import { requireApi } from "../auth.js";
 
@@ -74,7 +75,7 @@ adminRouter.get("/registrations", async (req, res) => {
 adminRouter.get("/stats", async (_req, res) => {
   const since = new Date(Date.now() - CHART_DAYS * 24 * 60 * 60 * 1000);
 
-  const [total, buckets, latest] = await Promise.all([
+  const [total, buckets, latest, visitorSeq] = await Promise.all([
     Registration.countDocuments({}),
     Registration.aggregate([
       { $match: { createdAt: { $gte: since } } },
@@ -86,6 +87,7 @@ adminRouter.get("/stats", async (_req, res) => {
       },
     ]),
     Registration.findOne({}).sort({ createdAt: -1 }).lean(),
+    currentSequence("visitors"),
   ]);
 
   const byDay = new Map(buckets.map((b) => [b._id, b.count]));
@@ -97,6 +99,9 @@ adminRouter.get("/stats", async (_req, res) => {
     total,
     today: days.at(-1)?.count ?? 0,
     last7,
+    // Distinct browsers that have been handed a visitor number.
+    visitors: visitorSeq,
+    conversion: visitorSeq > 0 ? total / visitorSeq : null,
     latestAt: latest?.createdAt ?? null,
     latestName: latest?.name ?? null,
     timezone: config.timezone,

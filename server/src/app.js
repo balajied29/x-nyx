@@ -2,6 +2,7 @@ import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
 import { registerRouter } from "./routes/register.js";
+import { visitRouter } from "./routes/visit.js";
 import { adminRouter } from "./routes/admin.js";
 import { clearSession, isAuthed, issueSession, loginThrottle, passwordMatches, requirePage } from "./auth.js";
 
@@ -15,8 +16,10 @@ export function createApp() {
 
   app.get("/health", (_req, res) => res.json({ ok: true }));
 
-  // Public: the teaser's registration form posts here (via the Next app).
+  // Public: the teaser posts here (via the Next app) to register and to claim
+  // a visitor number.
   app.use("/api", registerRouter);
+  app.use("/api", visitRouter);
 
   // Dashboard shell — assets carry no data, so they stay unauthenticated.
   app.use("/dashboard/assets", express.static(path.join(publicDir, "assets"), { maxAge: "1h" }));

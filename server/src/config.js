@@ -18,5 +18,7 @@ export const config = {
   dashboardPassword: required("DASHBOARD_PASSWORD"),
   sessionSecret: required("SESSION_SECRET"),
   timezone: process.env.TZ_NAME ?? "Asia/Kolkata",
+  // Visitor numbers are a real running count; this offsets where it starts.
+  visitorBase: Number(process.env.VISITOR_BASE ?? 0),
   isProd: process.env.NODE_ENV === "production",
 };

@@ -59,6 +59,9 @@ function renderStats(s) {
   $("statTotalNote").textContent = s.total === 0 ? "no signups yet" : "all time";
   $("statTz").textContent = s.timezone.replace("_", " ");
   $("stat7Note").textContent = `avg ${(s.last7 / 7).toFixed(1)} / day`;
+  $("statVisitors").textContent = numberFmt.format(s.visitors ?? 0);
+  $("statConversion").textContent =
+    s.conversion == null ? "no visits yet" : `${(s.conversion * 100).toFixed(1)}% registered`;
   $("statLatest").textContent = s.latestAt ? relativeTime(new Date(s.latestAt)) : "—";
   $("statLatestName").textContent = s.latestName ?? " ";
 }

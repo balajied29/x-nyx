@@ -7,6 +7,7 @@ const Scene = dynamic(() => import("@/components/Scene"), { ssr: false });
 
 const TARGET = new Date(2026, 7, 20, 0, 0, 0); // 20 August 2026, local time
 const MIN_LOADER_MS = 1400;
+const VISITOR_KEY = "xnyx_visitor_no";
 
 type Remaining = { days: string; hours: string; mins: string; secs: string };
 
@@ -129,17 +130,31 @@ export default function Home() {
   const [sceneReady, setSceneReady] = useState(false);
   const [minTimeUp, setMinTimeUp] = useState(false);
   const [registered, setRegistered] = useState(false);
-  const [visitor, setVisitor] = useState("####");
+  const [visitor, setVisitor] = useState<string | null>(null);
 
   useEffect(() => {
     const preview = new URLSearchParams(window.location.search).get("preview") === "registered";
     setRegistered(preview || localStorage.getItem("xnyx_registered") === "1");
-    let v = localStorage.getItem("xnyx_visitor");
-    if (!v) {
-      v = String(Math.floor(1000 + Math.random() * 9000));
-      localStorage.setItem("xnyx_visitor", v);
+
+    // A real, sequential visitor number: claimed from the server once per
+    // browser, then kept so the same visitor always sees the same number.
+    const stored = localStorage.getItem(VISITOR_KEY);
+    if (stored) {
+      setVisitor(stored);
+    } else {
+      fetch("/api/visit", { method: "POST" })
+        .then((res) => res.json())
+        .then((data) => {
+          if (typeof data?.number !== "number") return;
+          const n = String(data.number);
+          localStorage.setItem(VISITOR_KEY, n);
+          setVisitor(n);
+        })
+        .catch(() => {
+          /* counter unreachable — the line just stays hidden */
+        });
     }
-    setVisitor(v);
+
     const id = setTimeout(() => setMinTimeUp(true), MIN_LOADER_MS);
     return () => clearTimeout(id);
   }, []);
@@ -154,7 +169,13 @@ export default function Home() {
 
       <div className={`ui${loaded ? " uiIn" : ""}`}>
         <p className="visitor">
-          You are Visitor <b>#{visitor}</b>
+          {visitor ? (
+            <>
+              You are Visitor <b>#{visitor.padStart(4, "0")}</b>
+            </>
+          ) : (
+            <>&nbsp;</>
+          )}
         </p>
 
         {!registered ? (
