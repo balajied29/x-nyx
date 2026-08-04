@@ -1,3 +1,17 @@
+# NYX teaser
+
+Two pieces:
+
+- **the teaser** (this Next.js app) — Three.js hero, countdown to 20 August, registration form
+- **[`server/`](server/README.md)** — Express + MongoDB service that stores registrations and serves
+  the signup dashboard at [`/dashboard`](http://localhost:3000/dashboard)
+
+Run both: `npm run dev` here, and `npm start` in `server/` (needs MongoDB and a `server/.env` —
+see [server/README.md](server/README.md)). The Next app proxies `/dashboard` and `/api/admin/*` to
+the service, and `/api/register` forwards signups to it.
+
+---
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started

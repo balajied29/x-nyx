@@ -1,36 +1,33 @@
 import { NextResponse } from "next/server";
-import { promises as fs } from "fs";
-import path from "path";
 
-const FILE = path.join(process.cwd(), "data", "registrations.json");
-
-type Registration = { name: string; email: string; phone: string; at: string };
+// Registrations live in MongoDB, behind the Express service in ./server.
+const API_ORIGIN = process.env.API_ORIGIN ?? "http://localhost:4000";
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
-  const name = String(body?.name ?? "").trim();
-  const email = String(body?.email ?? "").trim().toLowerCase();
-  const phone = String(body?.phone ?? "").trim();
 
-  if (!name || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
-    return NextResponse.json({ ok: false, error: "Enter a valid name and email" }, { status: 400 });
-  }
-  if ((phone.match(/\d/g) ?? []).length < 7) {
-    return NextResponse.json({ ok: false, error: "Enter a valid phone number" }, { status: 400 });
-  }
-
-  await fs.mkdir(path.dirname(FILE), { recursive: true });
-  let list: Registration[] = [];
   try {
-    list = JSON.parse(await fs.readFile(FILE, "utf8"));
-  } catch {
-    // first registration — file doesn't exist yet
-  }
+    const res = await fetch(`${API_ORIGIN}/api/register`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "User-Agent": req.headers.get("user-agent") ?? "",
+      },
+      body: JSON.stringify({
+        name: body?.name ?? "",
+        email: body?.email ?? "",
+        phone: body?.phone ?? "",
+        source: "teaser",
+      }),
+    });
 
-  if (!list.some((r) => r.email === email)) {
-    list.push({ name, email, phone, at: new Date().toISOString() });
-    await fs.writeFile(FILE, JSON.stringify(list, null, 2));
+    const data = await res.json().catch(() => ({ ok: false, error: "Something went wrong — try again" }));
+    return NextResponse.json(data, { status: res.status });
+  } catch (err) {
+    console.error("[register] registrations API unreachable:", err);
+    return NextResponse.json(
+      { ok: false, error: "We couldn't save that just now — try again in a moment" },
+      { status: 502 },
+    );
   }
-
-  return NextResponse.json({ ok: true });
 }

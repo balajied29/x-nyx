@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>NYX · registrations</title>
+    <link rel="icon" href="/dashboard/assets/icon.png" />
+    <link rel="stylesheet" href="/dashboard/assets/dashboard.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="wordmark">NYX</span>
+        <span class="crumb">registrations</span>
+      </div>
+      <div class="topActions">
+        <span class="live" id="live" title="Auto-refreshing every 30s"><i></i> live</span>
+        <form method="post" action="/dashboard/logout"><button class="ghost" type="submit">Sign out</button></form>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <section class="tiles" aria-label="Summary">
+        <div class="tile">
+          <p class="tileLabel">Total signups</p>
+          <p class="tileValue" id="statTotal">—</p>
+          <p class="tileNote" id="statTotalNote">&nbsp;</p>
+        </div>
+        <div class="tile">
+          <p class="tileLabel">Today</p>
+          <p class="tileValue" id="statToday">—</p>
+          <p class="tileNote" id="statTz">&nbsp;</p>
+        </div>
+        <div class="tile">
+          <p class="tileLabel">Last 7 days</p>
+          <p class="tileValue" id="stat7">—</p>
+          <p class="tileNote" id="stat7Note">&nbsp;</p>
+        </div>
+        <div class="tile">
+          <p class="tileLabel">Latest signup</p>
+          <p class="tileValue small" id="statLatest">—</p>
+          <p class="tileNote" id="statLatestName">&nbsp;</p>
+        </div>
+      </section>
+
+      <section class="card" aria-label="Signups per day">
+        <div class="cardHead">
+          <h2>Signups per day</h2>
+          <p class="muted" id="chartRange">last 30 days</p>
+        </div>
+        <div class="chartWrap">
+          <svg id="chart" class="chart" role="img" aria-labelledby="chartDesc"></svg>
+          <p id="chartDesc" class="srOnly">Bar chart of daily registrations over the last 30 days.</p>
+          <div class="tip" id="tip" hidden></div>
+        </div>
+      </section>
+
+      <section class="card" aria-label="All registrations">
+        <div class="cardHead">
+          <h2>Everyone who signed up</h2>
+          <div class="controls">
+            <input id="search" type="search" placeholder="Search name, email, phone" autocomplete="off" />
+            <a class="ghost" id="exportCsv" href="/api/admin/registrations.csv">Export CSV</a>
+          </div>
+        </div>
+
+        <div class="tableWrap">
+          <table class="grid">
+            <thead>
+              <tr>
+                <th class="num">#</th>
+                <th data-sort="name" class="sortable">Name</th>
+                <th data-sort="email" class="sortable">Email</th>
+                <th>Phone</th>
+                <th data-sort="createdAt" class="sortable">Registered</th>
+                <th aria-label="Actions"></th>
+              </tr>
+            </thead>
+            <tbody id="rows">
+              <tr class="empty"><td colspan="6">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="pager">
+          <p class="muted" id="pageInfo">&nbsp;</p>
+          <div class="pageBtns">
+            <button class="ghost" id="prev" disabled>← Prev</button>
+            <button class="ghost" id="next" disabled>Next →</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="/dashboard/assets/dashboard.js"></script>
+  </body>
+</html>

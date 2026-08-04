@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>NYX · dashboard</title>
+    <link rel="icon" href="/dashboard/assets/icon.png" />
+    <link rel="stylesheet" href="/dashboard/assets/dashboard.css" />
+  </head>
+  <body class="loginBody">
+    <main class="loginCard">
+      <p class="wordmark">NYX</p>
+      <h1>Registrations</h1>
+      <p class="muted">Enter the dashboard password.</p>
+      <form method="post" action="/dashboard/login">
+        <label class="srOnly" for="password">Password</label>
+        <input id="password" name="password" type="password" placeholder="Password" autocomplete="current-password" autofocus required />
+        <button type="submit">Enter</button>
+      </form>
+      <p class="formError" id="err" role="alert" hidden>Wrong password.</p>
+    </main>
+    <script>
+      if (new URLSearchParams(location.search).get("error")) {
+        document.getElementById("err").hidden = false;
+      }
+    </script>
+  </body>
+</html>

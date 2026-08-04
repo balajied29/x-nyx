@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // The Express service is its own package with its own Node conventions.
+    "server/**",
   ]),
 ]);
 
