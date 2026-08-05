@@ -20,7 +20,16 @@ body {
   color: var(--fg);
   font-family: var(--mono);
   overflow: hidden;
+  overscroll-behavior: none;
   -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
+button,
+input {
+  touch-action: manipulation;
 }
 
 ::selection {
@@ -84,6 +93,26 @@ body {
   );
 }
 
+/* Sits between the canvas and the copy so the text stays readable even where
+   the X reaches into the lower half — which it does on short screens. */
+.scrim {
+  position: fixed;
+  inset: auto 0 0;
+  height: 46%;
+  pointer-events: none;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.94) 15%,
+    rgba(0, 0, 0, 0.75) 48%,
+    transparent 100%
+  );
+  transition: height 0.4s ease;
+}
+
+main:has(.uiCompact) .scrim {
+  height: 64%;
+}
+
 @keyframes raysBreathe {
   0%,
   100% {
@@ -99,6 +128,7 @@ body {
 .loader {
   position: fixed;
   inset: 0;
+  height: 100dvh;
   z-index: 30;
   display: grid;
   place-items: center;
@@ -142,13 +172,18 @@ body {
 .ui {
   position: fixed;
   inset: 0;
+  /* dvh tracks the real visible area on mobile, so the bottom row never ends
+     up behind the browser chrome. Falls back to inset: 0 where unsupported. */
+  height: 100dvh;
   z-index: 10;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: space-between;
-  padding: calc(max(24px, 3.5vh) + env(safe-area-inset-top)) 24px
-    calc(max(26px, 4.5vh) + env(safe-area-inset-bottom));
+  padding: calc(max(20px, 3vh) + env(safe-area-inset-top))
+    calc(20px + env(safe-area-inset-right))
+    calc(max(22px, 3.5vh) + env(safe-area-inset-bottom))
+    calc(20px + env(safe-area-inset-left));
   text-align: center;
   pointer-events: none;
   opacity: 0;
@@ -181,6 +216,7 @@ body {
   align-items: center;
   gap: clamp(12px, 2.2vh, 22px);
   width: 100%;
+  max-width: 720px;
 }
 
 .headline {
@@ -269,10 +305,17 @@ body {
   box-shadow: 0 0 24px rgba(255, 255, 255, 0.12);
 }
 
-.cta:hover {
-  background: transparent;
-  color: var(--fg);
-  box-shadow: 0 0 32px rgba(255, 255, 255, 0.2);
+/* Hover-only so a tap on a touchscreen doesn't leave the button inverted. */
+@media (hover: hover) {
+  .cta:hover {
+    background: transparent;
+    color: var(--fg);
+    box-shadow: 0 0 32px rgba(255, 255, 255, 0.2);
+  }
+}
+
+.cta:active {
+  transform: translateY(1px);
 }
 
 .regForm {
@@ -328,9 +371,15 @@ body {
   transition: background 0.25s ease, color 0.25s ease, opacity 0.25s;
 }
 
-.regForm button:hover {
-  background: transparent;
-  color: var(--fg);
+@media (hover: hover) {
+  .regForm button:hover {
+    background: transparent;
+    color: var(--fg);
+  }
+}
+
+.regForm button:active {
+  transform: translateY(1px);
 }
 
 .regForm button:disabled {
@@ -363,21 +412,104 @@ body {
   .regForm input {
     flex-basis: 100%;
     font-size: 16px; /* prevents iOS focus zoom */
-    padding: 14px;
+    padding: 13px 14px;
   }
   .regForm button,
   .cta {
     width: 100%;
     padding-block: 16px;
   }
+  .cta {
+    letter-spacing: 0.24em;
+    text-indent: 0.24em;
+  }
 }
 
+/* Phones. The tracking that makes the copy feel wide and cinematic on a
+   desktop is what pushes it into the screen edges here, so it comes down as
+   the viewport narrows. */
+@media (max-width: 430px) {
+  .headline {
+    font-size: 16px;
+    letter-spacing: 0.22em;
+    text-indent: 0.22em;
+  }
+  .sub {
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-indent: 0.16em;
+  }
+  .warn {
+    font-size: 10px;
+    letter-spacing: 0.11em;
+    text-indent: 0.11em;
+  }
+  .visitor {
+    font-size: 10px;
+    letter-spacing: 0.22em;
+  }
+
+  /* Let the countdown scale with the viewport instead of holding a fixed
+     272px, which ran straight into the padding on a 320px screen. */
+  .count,
+  .unitWrap {
+    gap: clamp(4px, 2vw, 10px);
+  }
+  .unit {
+    min-width: 0;
+    gap: 6px;
+  }
+  .unit .num {
+    font-size: clamp(22px, 8vw, 32px);
+  }
+  .unit .lbl {
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    text-indent: 0.14em;
+  }
+  .colon {
+    font-size: clamp(16px, 5vw, 22px);
+  }
+}
+
+/* With the form open the copy block roughly doubles in height, so it buys
+   back room by tightening up. */
+@media (max-width: 560px) {
+  .uiCompact .lower {
+    gap: 10px;
+  }
+  .uiCompact .regForm {
+    gap: 8px;
+  }
+}
+
+/* Short viewports — landscape phones, split-screen windows. */
 @media (max-height: 620px) {
   .lower {
-    gap: 10px;
+    gap: clamp(8px, 1.6vh, 14px);
   }
   .unit .num {
     font-size: 24px;
+  }
+  .headline {
+    font-size: 15px;
+  }
+}
+
+/* Landscape phone: put the form back on one row rather than stacking four
+   full-width controls into a 390px-tall screen. */
+@media (max-height: 480px) and (min-width: 560px) and (orientation: landscape) {
+  .lower {
+    gap: 8px;
+  }
+  .regForm input {
+    flex-basis: 160px;
+  }
+  .regForm button {
+    padding-block: 12px;
+  }
+  .warn {
+    display: none;
   }
 }
 

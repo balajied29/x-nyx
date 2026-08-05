@@ -5,7 +5,7 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 
 const Scene = dynamic(() => import("@/components/Scene"), { ssr: false });
 
-const TARGET = new Date(2026, 7, 20, 0, 0, 0); // 20 August 2026, local time
+const TARGET = new Date(2026, 7, 20, 22, 10, 0); // 20 August 2026, 10:10 PM local time
 const MIN_LOADER_MS = 1400;
 const VISITOR_KEY = "xnyx_visitor_no";
 
@@ -39,7 +39,7 @@ function Countdown() {
   ];
   return (
     <>
-      <span className="srOnly">Arrives on 20 August</span>
+      <span className="srOnly">Arrives on 20 August at 10:10 PM</span>
       <div className="count" aria-hidden>
         {units.map(([key, label], i) => (
           <div className="unitWrap" key={key}>
@@ -55,8 +55,15 @@ function Countdown() {
   );
 }
 
-function RegisterForm({ onDone }: { onDone: () => void }) {
-  const [open, setOpen] = useState(false);
+function RegisterForm({
+  open,
+  onOpen,
+  onDone,
+}: {
+  open: boolean;
+  onOpen: () => void;
+  onDone: () => void;
+}) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const nameRef = useRef<HTMLInputElement>(null);
@@ -67,7 +74,7 @@ function RegisterForm({ onDone }: { onDone: () => void }) {
 
   if (!open) {
     return (
-      <button type="button" className="cta" onClick={() => setOpen(true)}>
+      <button type="button" className="cta" onClick={onOpen}>
         Register
       </button>
     );
@@ -131,6 +138,7 @@ export default function Home() {
   const [minTimeUp, setMinTimeUp] = useState(false);
   const [registered, setRegistered] = useState(false);
   const [visitor, setVisitor] = useState<string | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
 
   useEffect(() => {
     const preview = new URLSearchParams(window.location.search).get("preview") === "registered";
@@ -163,11 +171,14 @@ export default function Home() {
 
   return (
     <main>
-      <Scene onReady={() => setSceneReady(true)} />
+      {/* The open form makes the copy block much taller, so the X has to give
+          up room for it — otherwise the two collide on a phone. */}
+      <Scene onReady={() => setSceneReady(true)} compact={formOpen} />
       <div className="rays" aria-hidden />
       <div className="vignette" aria-hidden />
+      <div className="scrim" aria-hidden />
 
-      <div className={`ui${loaded ? " uiIn" : ""}`}>
+      <div className={`ui${loaded ? " uiIn" : ""}${formOpen ? " uiCompact" : ""}`}>
         <p className="visitor">
           {visitor ? (
             <>
@@ -186,7 +197,11 @@ export default function Home() {
             <p className="sub">Something big is on its way</p>
             <Countdown />
             <p className="warn">Register before the city finds out</p>
-            <RegisterForm onDone={() => setRegistered(true)} />
+            <RegisterForm
+              open={formOpen}
+              onOpen={() => setFormOpen(true)}
+              onDone={() => setRegistered(true)}
+            />
           </div>
         ) : (
           <div className="lower reveal">

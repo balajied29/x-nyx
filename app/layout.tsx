@@ -8,6 +8,9 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: "#000000",
+  // Lets the layout reach under the notch and home indicator — without this
+  // the env(safe-area-inset-*) padding in globals.css all resolves to 0.
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
