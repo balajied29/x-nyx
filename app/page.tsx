@@ -5,7 +5,7 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 
 const Scene = dynamic(() => import("@/components/Scene"), { ssr: false });
 
-const TARGET = new Date(2026, 7, 20, 22, 10, 0); // 20 August 2026, 10:10 PM local time
+const TARGET = new Date(2026, 7, 21, 22, 10, 0); // 21 August 2026, 10:10 PM local time
 const MIN_LOADER_MS = 1400;
 const VISITOR_KEY = "xnyx_visitor_no";
 
@@ -39,7 +39,7 @@ function Countdown() {
   ];
   return (
     <>
-      <span className="srOnly">Arrives on 20 August at 10:10 PM</span>
+      <span className="srOnly">Arrives on 21 August at 10:10 PM</span>
       <div className="count" aria-hidden>
         {units.map(([key, label], i) => (
           <div className="unitWrap" key={key}>
@@ -206,7 +206,7 @@ export default function Home() {
         ) : (
           <div className="lower reveal">
             <h1 className="headline">You&rsquo;re on the list</h1>
-            <p className="sub">The next chapter arrives on 20 August</p>
+            <p className="sub">The next chapter arrives on 21 August</p>
             <Countdown />
             <p className="warn">Stay curious</p>
           </div>

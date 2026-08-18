@@ -2,7 +2,7 @@
 
 Two pieces:
 
-- **the teaser** (this Next.js app) — Three.js hero, countdown to 20 August, registration form
+- **the teaser** (this Next.js app) — Three.js hero, countdown to 21 August, registration form
 - **[`server/`](server/README.md)** — Express + MongoDB service that stores registrations and serves
   the signup dashboard at [`/dashboard`](http://localhost:3000/dashboard)
 
