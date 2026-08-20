@@ -12,19 +12,41 @@ import { Bloom, EffectComposer } from "@react-three/postprocessing";
  * once it is open — a full-width form, so it needs far more of the screen than
  * a desktop window does. `compact` is the open-form case.
  */
-function band(width: number, height: number, compact: boolean) {
+/* Where the lockup sits once the reveal has landed. A shade above true centre,
+   because the line hangs underneath and an optically centred group wants its
+   mass a little high. */
+const SOLO_CENTRE = 0.45;
+
+function band(
+  width: number,
+  height: number,
+  compact: boolean,
+  solo = false,
+): { top: number; reserved: number } {
   const portrait = height >= width;
+
+  // After the reveal there is nothing under the X but a single line, so the
+  // gap held open for the countdown, the notice and the register button is
+  // just a hole in the middle of the screen. Keep the band the same size —
+  // that is what sets how big the X is drawn — and move it, so the X and the
+  // line under it read as one centred lockup instead of a top-heavy one.
+  if (solo) {
+    const rest = band(width, height, false);
+    const bandH = 1 - rest.top - rest.reserved;
+    const top = SOLO_CENTRE - bandH / 2;
+    return { top, reserved: 1 - top - bandH };
+  }
 
   // A roomy desktop window keeps the original framing.
   if (width >= 900 && !portrait && height >= 560) {
-    return { top: 0.1, reserved: compact ? 0.46 : 0.4 };
+    return { top: 0.1, reserved: compact ? 0.48 : 0.43 };
   }
 
   // Everywhere else, work back from what the overlay actually needs in pixels.
   // The open form is about 360px tall — most of a 568px phone but only half of
   // an 852px one, and a single fraction gets one of those two badly wrong.
   const short = !portrait && height < 560; // landscape phone, short window
-  const uiPx = short ? (compact ? 155 : 160) : compact ? 360 : 225;
+  const uiPx = short ? (compact ? 190 : 195) : compact ? 398 : 263;
   const clearance = short ? 0.07 : 0.06; // breathing room below the X
   return {
     top: short ? 0.05 : 0.06,
@@ -37,6 +59,38 @@ function band(width: number, height: number, compact: boolean) {
 // pause — and because it is fully out of frame at the wrap, the restart is
 // invisible rather than a pop.
 const SHEEN_PERIOD = 6;
+
+/**
+ * The X is one plane cut down the middle into two, which ride apart as the
+ * lineup scrolls up between them — the pair of glass X's flanking the cards
+ * on the artwork. Fraction of a screen height the scroll takes to finish the
+ * split, and where the two halves end up: a share of the half-width, out past
+ * the card row. A phone sends them further out, since the cards there take
+ * the full width and the halves are only there to frame the edges.
+ */
+const SPLIT_SCROLL = 0.62;
+const SPLIT_EDGE_WIDE = 0.44;
+const SPLIT_EDGE_NARROW = 0.82;
+// At rest the X sits in the band above the copy; split, it stands the full
+// height of the screen alongside the cards.
+const SPLIT_HEIGHT = 0.94;
+
+/**
+ * A unit plane carrying one half of the texture — the geometry is half as
+ * wide and its u range is squeezed into that half, so the two together are
+ * the whole letter with no seam when they are closed up.
+ */
+function halfPlane(side: 0 | 1) {
+  const geometry = new THREE.PlaneGeometry(1, 1);
+  const uv = geometry.attributes.uv;
+  for (let i = 0; i < uv.count; i++) {
+    uv.setX(i, uv.getX(i) * 0.5 + side * 0.5);
+  }
+  uv.needsUpdate = true;
+  return geometry;
+}
+
+const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
 const PLANE_VERT = /* glsl */ `
   varying vec2 vUv;
@@ -175,12 +229,14 @@ function useSheenMaterial(tex: THREE.Texture) {
   return { material, setFrame };
 }
 
-function ChromeX({ still, compact }: { still: boolean; compact: boolean }) {
+function ChromeX({ still, compact, solo }: { still: boolean; compact: boolean; solo: boolean }) {
   const group = useRef<THREE.Group>(null);
-  const mesh = useRef<THREE.Mesh>(null);
-  const shadow = useRef<THREE.Mesh>(null);
+  const halves = useRef<(THREE.Mesh | null)[]>([null, null]);
+  const shadows = useRef<(THREE.Mesh | null)[]>([null, null]);
   const glow = useRef<THREE.Mesh>(null);
   const settled = useRef(false);
+  const geometries = useMemo(() => [halfPlane(0), halfPlane(1)], []);
+  useEffect(() => () => geometries.forEach((g) => g.dispose()), [geometries]);
   const { viewport, size } = useThree();
   const tex = useTexture("/x.png", (t) => {
     t.colorSpace = THREE.SRGBColorSpace;
@@ -193,7 +249,7 @@ function ChromeX({ still, compact }: { still: boolean; compact: boolean }) {
   const glowMaterial = useGlowMaterial();
 
   // Fit the X into the space above the text block, whatever the screen shape.
-  const { top, reserved } = band(size.width, size.height, compact);
+  const { top, reserved } = band(size.width, size.height, compact, solo);
   const bandH = Math.max(0.18, 1 - top - reserved);
   const height = Math.min(viewport.height * bandH, (viewport.width * 0.88) / aspect);
   // Centre it in that band. World y counts up from the middle of the screen.
@@ -206,10 +262,10 @@ function ChromeX({ still, compact }: { still: boolean; compact: boolean }) {
 
   useFrame((state, delta) => {
     const g = group.current;
-    const m = mesh.current;
-    const sh = shadow.current;
     const gl = glow.current;
-    if (!g || !m || !sh || !gl) return;
+    const [ml, mr] = halves.current;
+    const [sl, sr] = shadows.current;
+    if (!g || !gl || !ml || !mr || !sl || !sr) return;
     const t = state.clock.elapsedTime;
     const drift = still ? 0 : 1;
     // t = 0 parks the highlight just off the leading edge, so reduced-motion
@@ -225,15 +281,39 @@ function ChromeX({ still, compact }: { still: boolean; compact: boolean }) {
     g.rotation.y += (targetY - g.rotation.y) * k;
     g.rotation.x += (targetX - g.rotation.x) * k;
 
+    // How far the lineup has come up the screen. Read straight off the
+    // scroll rather than passed down as a prop — this changes every frame of
+    // a scroll, and a re-render per frame would cost far more than it buys.
+    // Before the reveal there is nothing to scroll, so this is simply 0 and
+    // the X behaves exactly as it did.
+    const p = Math.min(1, Math.max(0, window.scrollY / (size.height * SPLIT_SCROLL)));
+    const eased = p * p * (3 - 2 * p);
+
+    // Closed, the two halves meet in the middle of the band. Open, they stand
+    // full height at either edge with the cards in the gap between them.
+    const openHeight = viewport.height * SPLIT_HEIGHT;
+    const h = lerp(height, openHeight, eased);
+    const halfW = (h * aspect) / 2;
+    const edgeShare = size.width < 700 ? SPLIT_EDGE_NARROW : SPLIT_EDGE_WIDE;
+    const openX = viewport.width * edgeShare;
+    const x = lerp(halfW / 2, openX, eased);
+
     // Ease into the new size and position when the band changes (the form
     // opening, a rotation, a resize) rather than snapping to it.
     const e = settled.current ? (still ? 1 : Math.min(1, delta * 4)) : 1;
-    g.position.y += (y - g.position.y) * e;
-    m.scale.x += (height * aspect - m.scale.x) * e;
-    m.scale.y += (height - m.scale.y) * e;
-    // The shadow tracks the X a touch larger, the light pool tracks its size.
-    sh.scale.set(m.scale.x * 1.04, m.scale.y * 1.04, 1);
-    sh.position.set(shadowOffset, -shadowOffset, -0.6);
+    g.position.y += (lerp(y, 0, eased) - g.position.y) * e;
+
+    for (const [i, m] of [ml, mr].entries()) {
+      const dir = i === 0 ? -1 : 1;
+      m.scale.x += (halfW - m.scale.x) * e;
+      m.scale.y += (h - m.scale.y) * e;
+      m.position.x += (dir * x - m.position.x) * e;
+      const sh = i === 0 ? sl : sr;
+      // The shadow tracks its own half, a touch larger and offset down-right.
+      sh.scale.set(m.scale.x * 1.04, m.scale.y * 1.04, 1);
+      sh.position.set(m.position.x + shadowOffset, -shadowOffset, -0.6);
+    }
+
     gl.scale.set(glowSize * 1.15, glowSize, 1);
     settled.current = true;
   });
@@ -249,18 +329,31 @@ function ChromeX({ still, compact }: { still: boolean; compact: boolean }) {
         rotationIntensity={0}
         floatIntensity={still ? 0 : 0.25}
       >
-        {/* Inside it: the shadow moves with the letter that casts it. */}
-        <mesh ref={shadow} renderOrder={1} material={shadowMaterial}>
-          <planeGeometry />
-        </mesh>
-        <mesh
-          ref={mesh}
-          scale={[height * aspect, height, 1]}
-          renderOrder={2}
-          material={material}
-        >
-          <planeGeometry />
-        </mesh>
+        {/* Inside it: the shadows move with the halves that cast them. */}
+        {[0, 1].map((i) => (
+          <mesh
+            key={`shadow-${i}`}
+            ref={(node) => {
+              shadows.current[i] = node;
+            }}
+            renderOrder={1}
+            material={shadowMaterial}
+            geometry={geometries[i]}
+          />
+        ))}
+        {[0, 1].map((i) => (
+          <mesh
+            key={`half-${i}`}
+            ref={(node) => {
+              halves.current[i] = node;
+            }}
+            position={[((i === 0 ? -1 : 1) * height * aspect) / 4, 0, 0]}
+            scale={[(height * aspect) / 2, height, 1]}
+            renderOrder={2}
+            material={material}
+            geometry={geometries[i]}
+          />
+        ))}
       </Float>
     </group>
   );
@@ -276,9 +369,12 @@ function Ready({ onReady }: { onReady?: () => void }) {
 export default function Scene({
   onReady,
   compact = false,
+  solo = false,
 }: {
   onReady?: () => void;
   compact?: boolean;
+  /* The reveal has landed: the copy below the X is down to a single line. */
+  solo?: boolean;
 }) {
   const reducedMotion =
     typeof window !== "undefined" &&
@@ -295,7 +391,7 @@ export default function Scene({
         onCreated={({ gl }) => gl.setClearColor("#000000")}
       >
         <Suspense fallback={null}>
-          <ChromeX still={reducedMotion} compact={compact} />
+          <ChromeX still={reducedMotion} compact={compact} solo={solo} />
           <EffectComposer>
             <Bloom mipmapBlur intensity={0.4} luminanceThreshold={0.9} luminanceSmoothing={0.2} />
           </EffectComposer>
