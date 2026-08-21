@@ -11,9 +11,12 @@
  * The camera is scripted here rather than left to the page. Two things in the
  * app fight a recording: the reveal fires 2.6s in, which is barely time to read
  * the countdown, and the page then scrolls itself to the lineup — a jump that
- * lands mid-section. Both are neutralised below so the clip is one continuous
- * move: hold on the clock, flash, hold on the new copy, then a single slow
- * descent through the nights to the CTA.
+ * lands mid-section. Both are neutralised below so the move is ours.
+ *
+ * It holds on the clock, flashes, lets the new line breathe, rises to the
+ * title card, then stops on each night in turn rather than crawling past all
+ * of them — see the camera block for why that is both better to watch and far
+ * kinder to a capture that cannot hold a constant frame rate.
  */
 import { execFileSync, spawnSync } from "node:child_process";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
@@ -35,7 +38,10 @@ const FORMATS = {
   "16x9": { css: [1280, 720], dsf: 1.5, out: [1920, 1080], mobile: false },
 };
 const FORMAT = process.env.FORMAT ?? "9x16";
-const FPS = Number(process.env.FPS ?? 60);
+/* 30, not 60. The scene re-renders a full-screen WebGL canvas with bloom on
+   every scrolled frame and cannot hold 60 — asking for it only guarantees that
+   a third of the frames are repeats of the one before. */
+const FPS = Number(process.env.FPS ?? 30);
 const fmt = FORMATS[FORMAT];
 if (!fmt) throw new Error(`FORMAT must be one of ${Object.keys(FORMATS).join(", ")}`);
 const [cssW, cssH] = fmt.css;
@@ -45,7 +51,7 @@ const FILE = `${OUT}/nyx-reveal-${FORMAT}`;
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // How long the countdown stays on screen before the flash. The page ships 2.6s.
-const CLOCK_HOLD_MS = 7000;
+const CLOCK_HOLD_MS = Number(process.env.CLOCK_HOLD_MS ?? 5000);
 
 const b = await puppeteer.launch({
   executablePath: CHROME,
@@ -67,7 +73,8 @@ await cdp.send("Emulation.setEmulatedMedia", {
 await p.evaluateOnNewDocument((clockHold) => {
   // The dev-server badge must not end up in a social cut.
   const css = document.createElement("style");
-  css.textContent = "nextjs-portal,[data-nextjs-toast],#__next-build-watcher{display:none!important}";
+  css.textContent = "nextjs-portal,[data-nextjs-toast],#__next-build-watcher{display:none!important}" +
+    "html{scroll-behavior:auto!important}";
   document.addEventListener("DOMContentLoaded", () => document.head.appendChild(css));
 
   // Hold the clock longer than the page would. 2600 is the reveal timer in
@@ -108,6 +115,7 @@ async function startCapture() {
     const file = `${dir}/f${String(n++).padStart(5, "0")}.jpg`;
     writeFileSync(file, Buffer.from(data, "base64"));
     times.push(metadata.timestamp);
+
     try {
       await cdp.send("Page.screencastFrameAck", { sessionId });
     } catch {
@@ -149,49 +157,72 @@ async function startCapture() {
 await p.goto(`${BASE}/?preview=reveal`, { waitUntil: "domcontentloaded", timeout: 60000 });
 const rec = await startCapture();
 
-/**
- * One continuous move, timed rather than sped. The browser animates this
- * itself, frame by frame — an in-page requestAnimationFrame loop gets
- * throttled under headless and collapses the whole move into a couple of jumps.
- *
- * Timed, not fixed-speed, because the two formats have very different page
- * heights: five cards sit in one row on the desktop layout and stack on the
- * phone one. A shared px/sec makes the wide cut race and the tall cut crawl,
- * and moving more pixels per frame is also what makes judder visible.
- */
-async function glideFor(to, seconds) {
-  const from = await p.evaluate(() => window.scrollY);
-  const distance = Math.round(to - from);
-  if (distance === 0) return;
-  const pxPerSec = Math.max(40, Math.round(Math.abs(distance) / seconds));
-  await cdp.send("Input.synthesizeScrollGesture", {
-    x: 180,
-    y: 320,
-    xDistance: 0,
-    yDistance: -distance, // negative scrolls down the page
-    speed: pxPerSec,
-    gestureSourceType: "touch",
-    preventFling: true,
-  });
-}
-
 // loader ~1.4s · countdown holds · flash · the new line lands and breathes
 await wait(CLOCK_HOLD_MS + 4400);
 
-const marks = await p.evaluate(() => ({
-  // The stage, not the title: the title is sticky inside it, so its own box
-  // reports wherever it is currently pinned rather than where the run begins.
-  head: Math.round((document.querySelector(".headStage")?.getBoundingClientRect().top ?? 0) + window.scrollY),
-  bottom: document.documentElement.scrollHeight - window.innerHeight,
-}));
+const marks = await p.evaluate(() => {
+  const max = document.documentElement.scrollHeight - window.innerHeight;
+  const centre = (el) => {
+    const r = el.getBoundingClientRect();
+    return Math.max(0, Math.min(max, Math.round(r.top + window.scrollY - (window.innerHeight - r.height) / 2)));
+  };
+  return {
+    // The stage, not the title: the title is sticky inside it, so its own box
+    // reports wherever it is pinned rather than where the run begins.
+    head: Math.round(document.querySelector(".headStage").getBoundingClientRect().top + window.scrollY),
+    cards: [...document.querySelectorAll(".cards .card")].map(centre),
+    bottom: max,
+  };
+});
 
-await glideFor(marks.head, 3.4);  // the X opens, slowly, and the title arrives
-await wait(1800);                // let the title card sit
-// One steady descent. The title stays pinned through the first stretch of it,
-// so it holds on its own for a beat — with the X halves still drifting behind
-// — before the nights come up.
-await glideFor(marks.bottom, 11.5);
-await wait(3200);                // rest on the register CTA
+/**
+ * The camera stops on each night rather than crawling past all of them.
+ *
+ * A single continuous descent had to be slow enough to read, which made it
+ * both monotonous and the worst possible case for a capture that cannot hold a
+ * constant frame rate — every unevenness had a long steady move to show up
+ * against. Moving in short eased hops and resting on each card puts most of
+ * the piece in stillness, where there is no motion to judder, and what
+ * movement remains is slow at both ends of every hop, which is exactly where
+ * irregularity is least visible. It also reads as deliberate rather than as a
+ * page being scrolled past a camera.
+ */
+const HOP = 1.15, REST = 1.25;
+const segments = [{ from: 0, to: marks.head, dur: 2.6 },
+                  { from: marks.head, to: marks.head, dur: 1.6, hold: true }];
+let at = marks.head;
+const stops = [...marks.cards, marks.bottom];
+stops.forEach((to, i) => {
+  const last = i === stops.length - 1;
+  segments.push({ from: at, to, dur: last ? 1.3 : HOP });
+  segments.push({ from: to, to, dur: last ? 2.8 : REST, hold: true });
+  at = to;
+});
+const RUN = segments.reduce((n, seg) => n + seg.dur, 0);
+console.log(`  ${marks.cards.length} nights · camera runs ${RUN.toFixed(1)}s`);
+
+await p.evaluate((cam) => {
+  const t0 = performance.now();
+  const smooth = (q) => q * q * q * (q * (q * 6 - 15) + 10);
+  const glide = smooth;
+  const tick = () => {
+    let t = (performance.now() - t0) / 1000;
+    let y = cam.segments[0].from;
+    for (const seg of cam.segments) {
+      if (t < seg.dur) {
+        y = seg.hold ? seg.from : seg.from + (seg.to - seg.from) * glide(t / seg.dur);
+        break;
+      }
+      t -= seg.dur;
+      y = seg.to;
+    }
+    window.scrollTo(0, y);
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}, { segments });
+
+await wait(RUN * 1000 + 500);
 
 const shot = await rec.stop();
 await b.close();
@@ -213,7 +244,14 @@ const probe = (f, entries) =>
 // a variable frame rate, neither of which the trim/concat below can work with.
 const base = `${FILE}-base.mp4`;
 sh(["-f", "concat", "-safe", "0", "-i", `${FILE}-frames.txt`,
-    "-vf", `scale=${outW}:${outH}:flags=lanczos,format=yuv420p`,
+    /* A shutter. The capture runs at about three times the delivery rate, so
+       three source frames average into each frame kept — roughly a 33ms
+       exposure at 30fps, which is what a camera would give a move this fast.
+       It costs nothing where it is not wanted: a rest holds the same frame, and
+       averaging identical frames returns that frame, so every card the piece
+       stops on stays exactly as sharp as it was. Only the hops carry blur, and
+       a fast hop without it strobes. */
+    "-vf", `tmix=frames=3:weights=1 1 1,scale=${outW}:${outH}:flags=lanczos,format=yuv420p`,
     "-fps_mode", "cfr", "-r", `${FPS}`,
     "-c:v", "libx264", "-preset", "veryfast", "-crf", "16", "-an", base]);
 const duration = parseFloat(probe(base, "format=duration"));
