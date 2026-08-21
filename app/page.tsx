@@ -28,7 +28,16 @@ const Lineup = dynamic(loadLineup, {
   loading: () => <div style={{ height: "100dvh" }} aria-hidden />,
 });
 
-const TARGET = new Date(2026, 7, 21, 22, 10, 0); // 21 August 2026, 10:10 PM local time
+/**
+ * The moment, as one instant rather than a wall-clock reading.
+ *
+ * Built from date parts this was 10:10 PM in whatever timezone the visitor's
+ * browser happened to be in, so the reveal was not a shared moment at all —
+ * someone watching from London would have got it five and a half hours after
+ * the room did. The offset is written into the string, so this is a fixed
+ * point on the timeline and everyone arrives at it together.
+ */
+const TARGET = new Date("2026-08-21T22:10:00+05:30"); // 10:10 PM IST
 const MIN_LOADER_MS = 1400;
 /**
  * Where the table-booking button sends people — a WhatsApp link, a phone
@@ -306,7 +315,7 @@ function Countdown({ blowing }: { blowing: boolean }) {
   ];
   return (
     <>
-      <span className="srOnly">Arrives on 21 August at 10:10 PM</span>
+      <span className="srOnly">Arrives on 21 August at 10:10 PM India time</span>
       <div className={`count${blowing ? " countBlow" : ""}`} aria-hidden>
         {units.map(([key, label], i) => (
           <div className="unitWrap" key={key}>
