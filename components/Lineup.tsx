@@ -38,9 +38,9 @@ export const EVENTS: Event[] = [
     artist: "Quills",
     date: "4th Sept",
     photo: "/lineup/quills.jpg",
+    ticket: "https://onlybees.in/event/nyx-turns-10-ft-quills-shillong",
     /* He stands left of centre in a wide frame. */
     focusX: "40%",
-    ticket: "",
   },
   {
     artist: "Kinky Sound",
@@ -54,7 +54,7 @@ export const EVENTS: Event[] = [
     artist: "Aalika",
     date: "11th Sept",
     photo: "/lineup/aalika.jpg",
-    ticket: "",
+    ticket: "https://onlybees.in/event/nyx-turns-10-ft-aalika",
   },
   {
     artist: "Karwaan (Live)",
