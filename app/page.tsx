@@ -37,7 +37,7 @@ const Lineup = dynamic(loadLineup, {
  * the room did. The offset is written into the string, so this is a fixed
  * point on the timeline and everyone arrives at it together.
  */
-const TARGET = new Date("2026-08-21T22:10:00+05:30"); // 10:10 PM IST
+const TARGET = new Date("2026-08-21T21:44:00+05:30"); // brought forward on the night
 const MIN_LOADER_MS = 1400;
 /**
  * Where the table-booking button sends people — a WhatsApp link, a phone
