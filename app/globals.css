@@ -653,11 +653,21 @@ body.locked {
   align-items: center;
   gap: 6px;
   padding: 4px 14px 0;
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 0.3em;
   text-indent: 0.3em;
   text-transform: uppercase;
-  color: var(--faint);
+  /* Full white, not --faint and not --dim. This is the only thing telling
+     anyone there is a lineup below the fold, and at 28% of white under an
+     animation that halved it again it could not be read on a phone in any
+     real light. It stays subordinate to the headline by size, not by being
+     too dark to see. */
+  color: var(--fg);
+  /* Weight, not just colour. At this size the strokes are thin enough that
+     barely any pixel is fully covered, so the line reads far dimmer than its
+     colour suggests — 500 puts real ink on the screen. */
+  font-weight: 500;
+  text-shadow: 0 0 18px rgba(0, 0, 0, 0.9);
   text-decoration: none;
   transition: color 0.25s ease;
 }
@@ -698,7 +708,7 @@ body.locked {
   0%,
   100% {
     transform: rotate(45deg) translate(0, 0);
-    opacity: 0.5;
+    opacity: 0.75;
   }
   50% {
     /* Both axes, because the box is rotated — this reads as straight up. */
@@ -1446,6 +1456,19 @@ a.cta {
   /* One card at a time on a phone, so the stagger would stall the scroll. */
   .card {
     transition-delay: 0ms;
+  }
+  /* The view this cue belongs to is mostly seen on a phone — size it for the
+     device that actually gets it, not down from the desktop. */
+  .cue {
+    font-size: 12px;
+    letter-spacing: 0.24em;
+    text-indent: 0.24em;
+    gap: 8px;
+  }
+  .cue::after {
+    width: 10px;
+    height: 10px;
+    border-width: 1.5px;
   }
 }
 
