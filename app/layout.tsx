@@ -15,8 +15,11 @@ const siteUrl =
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  title: "X — Something big is on its way",
-  description: "Register before the city finds out.",
+  /* What a shared link says about itself. Both lines carried the teaser, and
+     the teaser is over — the countdown has run and the run is announced, so
+     the preview names the thing rather than hinting at it. */
+  title: "NYX Turns X (Ten) · 4th–13th Sept",
+  description: "Five nights, one decade — Guwahati’s wildest celebration.",
 };
 
 export const viewport: Viewport = {

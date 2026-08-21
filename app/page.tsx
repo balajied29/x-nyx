@@ -562,6 +562,13 @@ export default function Home() {
             <h1 className="headline headlineBig">
               <span className="srOnly">X </span>is here
             </h1>
+            {/* The lineup is a full screen below the fold and nothing else on
+                this view says so. Also a real link, so a tap works as well as
+                the gesture it names. */}
+            <a className="cue" href="#lineup">
+              <span className="cueSwipe">Swipe up</span>
+              <span className="cueScroll">Scroll</span>
+            </a>
           </div>
         ) : !registered ? (
           <div className="lower">

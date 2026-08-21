@@ -666,10 +666,26 @@ body.locked {
   content: "";
   width: 8px;
   height: 8px;
-  border-right: 1px solid currentColor;
-  border-bottom: 1px solid currentColor;
+  /* Top and left edges, turned 45deg — a chevron pointing the way the page
+     travels, which is the same way the finger goes. */
+  border-top: 1px solid currentColor;
+  border-left: 1px solid currentColor;
   transform: rotate(45deg);
-  animation: cueDrop 1.9s ease-in-out infinite;
+  animation: cueRise 1.9s ease-in-out infinite;
+}
+
+/* One label per input. A mouse does not swipe. */
+.cueScroll {
+  display: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .cueSwipe {
+    display: none;
+  }
+  .cueScroll {
+    display: inline;
+  }
 }
 
 @media (hover: hover) {
@@ -678,14 +694,15 @@ body.locked {
   }
 }
 
-@keyframes cueDrop {
+@keyframes cueRise {
   0%,
   100% {
     transform: rotate(45deg) translate(0, 0);
     opacity: 0.5;
   }
   50% {
-    transform: rotate(45deg) translate(3px, 3px);
+    /* Both axes, because the box is rotated — this reads as straight up. */
+    transform: rotate(45deg) translate(-3px, -3px);
     opacity: 1;
   }
 }
