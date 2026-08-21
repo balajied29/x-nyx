@@ -11,7 +11,22 @@ import {
 } from "react";
 
 const Scene = dynamic(() => import("@/components/Scene"), { ssr: false });
-const Lineup = dynamic(() => import("@/components/Lineup"), { ssr: false });
+/**
+ * Client-only: the cards read IntersectionObserver as they initialise, so
+ * there is nothing sensible for the server to render.
+ *
+ * The placeholder is not decoration. Everything below the reveal mounts at
+ * once, and until this chunk arrives the booking section would sit directly
+ * under the hero spacer — on screen, for exactly as long as the load takes,
+ * before the lineup lands and shoves it down. Holding a screen's worth of
+ * height keeps it below the fold either way. loadLineup() then warms the
+ * chunk during the teaser, so in practice the placeholder is never seen.
+ */
+const loadLineup = () => import("@/components/Lineup");
+const Lineup = dynamic(loadLineup, {
+  ssr: false,
+  loading: () => <div style={{ height: "100dvh" }} aria-hidden />,
+});
 
 const TARGET = new Date(2026, 7, 21, 22, 10, 0); // 21 August 2026, 10:10 PM local time
 const MIN_LOADER_MS = 1400;
@@ -112,6 +127,54 @@ const clock = (() => {
     },
     getSnapshot: () => snapshot,
     getServerSnapshot: () => null,
+  };
+})();
+
+/**
+ * The reveal sound.
+ *
+ * It leads the flash rather than landing on it: the file opens with a riser
+ * that has to be underway before the white hits, so playback starts this far
+ * ahead and the impact lands on the frame.
+ */
+const REVEAL_SOUND_LEAD_MS = 2400;
+
+/**
+ * Autoplay stays blocked until the visitor has interacted with the page, so
+ * the element is primed on their first gesture — played muted and immediately
+ * paused, which is what actually unlocks it for later. Someone who only ever
+ * watches the clock unlocks nothing and the moment passes in silence, which is
+ * the correct outcome: a blocked play() rejects and there is nothing to
+ * recover, and a page has no business insisting on being heard.
+ */
+const revealSound = (() => {
+  let el: HTMLAudioElement | null = null;
+  const element = () => {
+    if (!el) {
+      el = new Audio("/reveal.mp3");
+      el.preload = "auto";
+    }
+    return el;
+  };
+  return {
+    prime() {
+      const a = element();
+      a.muted = true;
+      a.play()
+        .then(() => {
+          a.pause();
+          a.currentTime = 0;
+          a.muted = false;
+        })
+        .catch(() => {
+          a.muted = false;
+        });
+    },
+    play() {
+      const a = element();
+      a.currentTime = 0;
+      a.play().catch(() => {});
+    },
   };
 })();
 
@@ -351,6 +414,20 @@ export default function Home() {
   const [flashing, setFlashing] = useState(false);
 
   useEffect(() => {
+    const unlock = () => revealSound.prime();
+    window.addEventListener("pointerdown", unlock, { once: true, passive: true });
+    window.addEventListener("keydown", unlock, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+  }, []);
+
+  useEffect(() => {
+    // Fetched while the countdown is still running, so the reveal has nothing
+    // left to wait for. Failure is not worth handling: the dynamic import runs
+    // again on render, and the placeholder above covers the gap.
+    void loadLineup().catch(() => {});
     const id = setTimeout(() => setMinTimeUp(true), MIN_LOADER_MS);
     return () => clearTimeout(id);
   }, []);
@@ -381,15 +458,24 @@ export default function Home() {
     };
 
     if (previewFlag() === "reveal") {
+      timers.push(setTimeout(() => revealSound.play(), Math.max(0, 2600 - REVEAL_SOUND_LEAD_MS)));
       timers.push(setTimeout(fire, 2600));
       return () => timers.forEach(clearTimeout);
     }
 
+    // Polled at 100ms rather than 500ms: the sound has to start on a mark, and
+    // half a second of slop is audible against a two-and-a-half second riser.
+    let cued = false;
     const id = setInterval(() => {
-      if (Date.now() < TARGET.getTime()) return;
+      const left = TARGET.getTime() - Date.now();
+      if (!cued && left <= REVEAL_SOUND_LEAD_MS) {
+        cued = true;
+        revealSound.play();
+      }
+      if (left > 0) return;
       clearInterval(id);
       fire();
-    }, 500);
+    }, 100);
     return () => {
       clearInterval(id);
       timers.forEach(clearTimeout);
