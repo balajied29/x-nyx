@@ -48,7 +48,7 @@ export const EVENTS: Event[] = [
     photo: "/lineup/kinky-sounds.jpg",
     /* A square frame with him standing well right of centre. */
     focusX: "60%",
-    ticket: "",
+    ticket: "https://www.district.in/events/nyx-turns-10-presents-elevate-ft-kinky-sound-russia-sep5-2026-buy-tickets",
   },
   {
     artist: "Aalika",
@@ -62,13 +62,14 @@ export const EVENTS: Event[] = [
     fit: "contain",
     date: "12th Sept",
     photo: "/lineup/karwaan.jpg",
-    ticket: "",
+    /* Shares the 12th with Akbar Sami — one night, one ticket. */
+    ticket: "https://www.district.in/events/nyx-turns-10-presents-big-bollywood-night-sep12-2026-buy-tickets",
   },
   {
     artist: "Akbar Sami",
     date: "12th Sept",
     photo: "/lineup/akbar-sami.jpg",
-    ticket: "",
+    ticket: "https://www.district.in/events/nyx-turns-10-presents-big-bollywood-night-sep12-2026-buy-tickets",
   },
 ];
 
